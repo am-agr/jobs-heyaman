@@ -1,0 +1,47 @@
+name: Fetch jobs
+
+# 6:00 and 18:00 IST  ->  00:30 and 12:30 UTC
+on:
+  schedule:
+    - cron: "30 0 * * *"
+    - cron: "30 12 * * *"
+  workflow_dispatch: {}   # run on-demand from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -r fetcher/requirements.txt
+
+      - name: Fetch openings
+        env:
+          ADZUNA_ID: ${{ secrets.ADZUNA_ID }}
+          ADZUNA_KEY: ${{ secrets.ADZUNA_KEY }}
+        run: python fetcher/fetch_jobs.py
+
+      - name: Encrypt page (inlines jobs, AES-256-GCM)
+        env:
+          SITE_PIN: ${{ secrets.SITE_PIN }}   # optional override; defaults to 2452
+        run: node encrypt.js
+
+      - name: Commit encrypted page
+        run: |
+          git config user.name  "job-radar-bot"
+          git config user.email "bot@heyaman.in"
+          git add public/index.html
+          if git diff --staged --quiet; then
+            echo "No changes."
+          else
+            git commit -m "chore: refresh openings ($(date -u +'%Y-%m-%d %H:%M') UTC)"
+            git push
+          fi
