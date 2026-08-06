@@ -1,0 +1,12 @@
+# Git-connected deploy serves /public and bundles the refresh function.
+[build]
+  publish = "public"
+  command = "echo 'static site — no build needed'"
+
+[functions]
+  directory = "netlify/functions"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache"
